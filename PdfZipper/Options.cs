@@ -16,5 +16,7 @@ namespace PdfZipper
         [Option('o', "output-folder", HelpText = "Folder where generated PDFs will be dumped")]
         public string OutputFolder { get; set; }
 
+        [Option('q', "quality", "Compression Quality of Image")]
+        public int Quality { get; set; }
     }
 }
