@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Drawing;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -19,10 +20,7 @@ namespace PdfZipper
         private const string SaveLocation = "./ExportPdfs/";
         private static readonly string ImageSaveLocation = $"{Directory.GetCurrentDirectory()}/CompressedImages/{{0}}/{{1}}";
         private static readonly string PdfSaveLocation = $"{Directory.GetCurrentDirectory()}/PDF/{{0}}";
-        private static readonly JpegFormat ImageFormat = new JpegFormat
-        {
-            Quality = 15
-        };
+        private const int Quality = 20;
         static void Main(string[] args)
         {
             var searchFolder =  "C:\\Users\\adam.hess\\Desktop\\New York Law Journal";
@@ -41,7 +39,16 @@ namespace PdfZipper
             var imageFiles = Directory.GetFiles(folder, "*_*.jpg").OrderBy(m => m);
             var folderName = Path.GetFileName(folder);
             var pdfName = $"{folderName} - NYLJ.pdf";
-            using var doc = new PdfDocument();
+            using var doc = new PdfDocument()
+            {
+                Options =
+                {
+                    NoCompression = false,
+                    CompressContentStreams = true,
+                    UseFlateDecoderForJpegImages = PdfUseFlateDecoderForJpegImages.Automatic,
+                    FlateEncodeMode = PdfFlateEncodeMode.BestCompression
+                }
+            };
             using var imgfactory = new ImageFactory();
             foreach (var imageFile in imageFiles)
             {
@@ -72,7 +79,8 @@ namespace PdfZipper
         {
             var memStream = new MemoryStream();
             imgfactory.Load(imageFile)
-                .Format(ImageFormat)
+                .Quality(Quality)
+                .Constrain(new Size((int)(imgfactory.Image.Width/1.25), (int)(imgfactory.Image.Height/1.25)))
                 .Save(memStream);
             return memStream;
         }
