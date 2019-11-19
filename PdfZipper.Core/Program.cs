@@ -1,7 +1,9 @@
 ﻿using System;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
+using System.Threading.Tasks;
 using CommandLine;
 using ImageProcessor;
 using NLog;
@@ -17,9 +19,11 @@ namespace PdfZipper.Core
 
         private static Logger Log => LogManager.GetCurrentClassLogger();
 
+
         static void Main(string[] args)
         {
 
+            
             Parser.Default.ParseArguments<Options>(args)
                 .WithParsed<Options>(ops =>
                 {
@@ -49,16 +53,23 @@ namespace PdfZipper.Core
             Directory.CreateDirectory(Options.OutputFolder);
 
             using var folderProgressBar = new ProgressBar(folders.Count, "Processing Folders", ConsoleColor.White);
-            foreach (var folder in folders)
+            var currFolder = 0;
+            Parallel.ForEach(folders, new ParallelOptions
             {
-                ProcessFolder(folder, folderProgressBar);
-            }
+                MaxDegreeOfParallelism = 3,
+
+            },
+                f =>
+                {
+                    folderProgressBar.Tick($"{f} {++currFolder}/{folders.Count}");
+                    ProcessFolder(f, folderProgressBar);
+                });
+
         }
 
         private static void ProcessFolder(string folder, ProgressBar parentProgressBar)
         {
             var imageFiles = Directory.GetFiles(folder, "*.jpg").OrderBy(m => m).ToList();
-            parentProgressBar.Tick($"{folder} with {imageFiles.Count} files");
             if (!imageFiles.Any())
             {
                 Log.Info($"No Images found in skipping folder: {folder}");
@@ -89,7 +100,7 @@ namespace PdfZipper.Core
             foreach (var imageFile in imageFiles)
             {
 
-                imageProgressBar.Tick($"Processing {imageFile} {progressCount++}/{imageFiles.Count}");
+                imageProgressBar.Tick($"Processing {imageFile} {++progressCount}/{imageFiles.Count}");
                 using var memStream = CompressImage(imgfactory, imageFile);
                 AddPageToPdf(memStream, doc);
                 
