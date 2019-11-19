@@ -6,38 +6,71 @@ using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
+using CommandLine;
 using ImageProcessor;
 using ImageProcessor.Imaging.Formats;
 using PdfSharp.Drawing;
 using PdfSharp.Pdf;
 using PdfSharp.Pdf.Advanced;
+using ShellProgressBar;
 
 namespace PdfZipper
 {
     class Program
     {
 
-        private const string SaveLocation = "./ExportPdfs/";
-        private static readonly string ImageSaveLocation = $"{Directory.GetCurrentDirectory()}/CompressedImages/{{0}}/{{1}}";
-        private static readonly string PdfSaveLocation = $"{Directory.GetCurrentDirectory()}/PDF/{{0}}";
-        private const int Quality = 20;
+
+        private static Options Options { get; set; }
         static void Main(string[] args)
         {
-            var searchFolder =  "C:\\Users\\adam.hess\\Desktop\\New York Law Journal";
-            var folders = Directory.GetDirectories(searchFolder).Where(m => Regex.IsMatch(m, "\\d")).ToList();
-            Directory.CreateDirectory(string.Format(PdfSaveLocation,""));
 
-            
+            Parser.Default.ParseArguments<Options>(args)
+                .WithParsed<Options>(ops =>
+                {
+                    Options = ops;
+                    Execute();
+                });
+
+
+        }
+
+        private static void Execute()
+        {
+            var searchFolder = Options.InputFolder; //"C:\\Users\\adam.hess\\Desktop\\New York Law Journal";
+            if (!Directory.Exists(searchFolder))
+            {
+                Console.WriteLine($"Input Directory Does not exist. Exiting application. {Options.InputFolder}");
+                return;
+            }
+
+            var folders = Directory.GetDirectories(searchFolder).Where(m => Regex.IsMatch(m, "\\d")).ToList();
+
+            if (!folders.Any())
+            {
+                Console.WriteLine($"No Folders found in directory {Options.InputFolder}");
+                return;
+            }
+            Directory.CreateDirectory(Options.OutputFolder);
+
+            using var folderProgressBar = new ProgressBar(folders.Count, "Processing Folders", ConsoleColor.White);
             foreach (var folder in folders)
             {
-                ProcessFolder(folder);
+                folderProgressBar.Tick(folder);
+                ProcessFolder(folder, folderProgressBar);
             }
         }
 
-        private static void ProcessFolder(string folder)
+        private static void ProcessFolder(string folder, ProgressBar parentProgressBar)
         {
-            var imageFiles = Directory.GetFiles(folder, "*_*.jpg").OrderBy(m => m);
+            var imageFiles = Directory.GetFiles(folder, "*_*.jpg").OrderBy(m => m).ToList();
+
+            if (!imageFiles.Any())
+            {
+                Console.WriteLine($"No Images found in skipping folder: {folder}");
+                return;
+            }
             var folderName = Path.GetFileName(folder);
+            Console.WriteLine($"Processing Directory: {folderName}  with {imageFiles.Count()} found");
             var pdfName = $"{folderName} - NYLJ.pdf";
             using var doc = new PdfDocument()
             {
@@ -50,16 +83,19 @@ namespace PdfZipper
                 }
             };
             using var imgfactory = new ImageFactory();
+            using var imageProgressBar = parentProgressBar.Spawn(imageFiles.Count, "Processing Image");
             foreach (var imageFile in imageFiles)
             {
+                
                 using var memStream = CompressImage(imgfactory, imageFile);
                 AddPageToPdf(memStream, doc);
+                imageProgressBar.Tick($"Processing: {imageFile}");
             }
 
-            if (doc.PageCount > 0)
-            {
-                doc.Save(string.Format(PdfSaveLocation, pdfName));
-            }
+            if (doc.PageCount <= 0) return;
+
+            doc.Save(Path.Combine(Options.OutputFolder, pdfName));
+            Console.WriteLine($"Created PDF: {pdfName}");
         }
 
         private static void AddPageToPdf(Stream memStream, PdfDocument doc)
@@ -79,10 +115,10 @@ namespace PdfZipper
         {
             var memStream = new MemoryStream();
             imgfactory.Load(imageFile)
-                .Quality(Quality)
-                .Constrain(new Size((int)(imgfactory.Image.Width/1.25), (int)(imgfactory.Image.Height/1.25)))
+                .Quality(Options.Quality)
                 .Save(memStream);
             return memStream;
         }
+
     }
 }
