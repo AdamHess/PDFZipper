@@ -1,25 +1,17 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Drawing;
 using System.IO;
 using System.Linq;
-using System.Text;
 using System.Text.RegularExpressions;
-using System.Threading.Tasks;
 using CommandLine;
 using ImageProcessor;
-using ImageProcessor.Imaging.Formats;
 using PdfSharp.Drawing;
 using PdfSharp.Pdf;
-using PdfSharp.Pdf.Advanced;
 using ShellProgressBar;
 
-namespace PdfZipper
+namespace PdfZipper.Core
 {
     class Program
     {
-
-
         private static Options Options { get; set; }
         static void Main(string[] args)
         {
@@ -62,7 +54,7 @@ namespace PdfZipper
 
         private static void ProcessFolder(string folder, ProgressBar parentProgressBar)
         {
-            var imageFiles = Directory.GetFiles(folder, "*_*.jpg").OrderBy(m => m).ToList();
+            var imageFiles = Directory.GetFiles(folder, "*.jpg").OrderBy(m => m).ToList();
 
             if (!imageFiles.Any())
             {
@@ -86,7 +78,7 @@ namespace PdfZipper
             using var imageProgressBar = parentProgressBar.Spawn(imageFiles.Count, "Processing Image");
             foreach (var imageFile in imageFiles)
             {
-                
+
                 using var memStream = CompressImage(imgfactory, imageFile);
                 AddPageToPdf(memStream, doc);
                 imageProgressBar.Tick($"Processing: {imageFile}");
@@ -122,3 +114,4 @@ namespace PdfZipper
 
     }
 }
+
