@@ -22,6 +22,9 @@ namespace PdfZipper
         public string FileNamingConvention { get; set; } = "{0} - NYLJ.pdf";
 
         [Option('q', "quality", HelpText = "Compression Quality of Image. Defaults to 90")]
-        public int Quality { get; set; } = 90;
+        public int Quality { get; set; } = 20;
+
+        [Option('s', "skip-existing", HelpText = "Skips folders that have PDFS already generated in output directory.")]
+        public bool SkipExistingFolders { get; set; }
     }
 }

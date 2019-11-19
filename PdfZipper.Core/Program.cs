@@ -4,6 +4,7 @@ using System.Linq;
 using System.Text.RegularExpressions;
 using CommandLine;
 using ImageProcessor;
+using NLog;
 using PdfSharp.Drawing;
 using PdfSharp.Pdf;
 using ShellProgressBar;
@@ -13,6 +14,8 @@ namespace PdfZipper.Core
     class Program
     {
         private static Options Options { get; set; }
+
+        private static Logger Log => LogManager.GetCurrentClassLogger();
 
         static void Main(string[] args)
         {
@@ -49,22 +52,27 @@ namespace PdfZipper.Core
             foreach (var folder in folders)
             {
                 ProcessFolder(folder, folderProgressBar);
-                folderProgressBar.Tick(folder);
             }
         }
 
         private static void ProcessFolder(string folder, ProgressBar parentProgressBar)
         {
             var imageFiles = Directory.GetFiles(folder, "*.jpg").OrderBy(m => m).ToList();
-
+            parentProgressBar.Tick($"{folder} with {imageFiles.Count} files");
             if (!imageFiles.Any())
             {
-                Console.WriteLine($"No Images found in skipping folder: {folder}");
+                Log.Info($"No Images found in skipping folder: {folder}");
                 return;
             }
             var folderName = Path.GetFileName(folder);
-            Console.WriteLine($"Processing Directory: {folderName}  with {imageFiles.Count()} found");
+            Log.Info($"Processing Directory: {folderName}  with {imageFiles.Count()} found");
             var pdfName = $"{folderName} - NYLJ.pdf";
+            if (File.Exists(Path.Combine(Options.OutputFolder, pdfName)) && Options.SkipExistingFolders)
+            {
+                Log.Info($"Skipping {folder}");
+                return;
+            }
+            
             using var doc = new PdfDocument()
             {
                 Options =
@@ -77,18 +85,20 @@ namespace PdfZipper.Core
             };
             using var imgfactory = new ImageFactory();
             using var imageProgressBar = parentProgressBar.Spawn(imageFiles.Count, "Processing Image");
+            var progressCount = 0;
             foreach (var imageFile in imageFiles)
             {
 
+                imageProgressBar.Tick($"Processing {imageFile} {progressCount++}/{imageFiles.Count}");
                 using var memStream = CompressImage(imgfactory, imageFile);
                 AddPageToPdf(memStream, doc);
-                imageProgressBar.Tick($"Processing: {imageFile}");
+                
             }
 
             if (doc.PageCount <= 0) return;
 
             doc.Save(Path.Combine(Options.OutputFolder, pdfName));
-            Console.WriteLine($"Created PDF: {pdfName}");
+            Log.Info($"Created PDF: {pdfName}");
         }
 
         private static void AddPageToPdf(Stream memStream, PdfDocument doc)
