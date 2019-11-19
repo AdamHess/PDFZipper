@@ -13,6 +13,7 @@ namespace PdfZipper.Core
     class Program
     {
         private static Options Options { get; set; }
+
         static void Main(string[] args)
         {
 
@@ -47,8 +48,8 @@ namespace PdfZipper.Core
             using var folderProgressBar = new ProgressBar(folders.Count, "Processing Folders", ConsoleColor.White);
             foreach (var folder in folders)
             {
-                folderProgressBar.Tick(folder);
                 ProcessFolder(folder, folderProgressBar);
+                folderProgressBar.Tick(folder);
             }
         }
 
