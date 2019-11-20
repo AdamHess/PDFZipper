@@ -6,6 +6,7 @@ using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
+using ByteSizeLib;
 using CommandLine;
 using ImageProcessor;
 using NLog;
@@ -118,19 +119,20 @@ namespace PdfZipper.Core
             using var imgfactory = new ImageFactory();
             using var imageProgressBar = parentProgressBar.Spawn(imageFiles.Count, "Processing Image");
             var progressCount = 0;
+            var imgSize = 0L;
             foreach (var imageFile in imageFiles)
             {
 
                 imageProgressBar.Tick($"Processing {imageFile} {++progressCount}/{imageFiles.Count}");
                 using var memStream = CompressImage(imgfactory, imageFile);
                 AddPageToPdf(memStream, doc);
-
+                imgSize += memStream.Length;
             }
 
             if (doc.PageCount <= 0) return;
-
             doc.Save(Path.Combine(Options.OutputFolder, pdfName));
-            Log.Info($"Created PDF: {pdfName}");
+            Log.Info($"{pdfName} Created. Average Image Size: {ByteSize.FromBytes(imgSize / imageFiles.Count)}");
+
         }
 
         private static void AddPageToPdf(Stream memStream, PdfDocument doc)

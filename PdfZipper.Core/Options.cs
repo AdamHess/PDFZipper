@@ -16,7 +16,7 @@ namespace PdfZipper
         [Option('o', "output-folder", HelpText = "Folder where generated PDFs will be dumped. Defaults to ./OutputPdfs")]
         public string OutputFolder { get; set; } = $"{Path.Combine(Directory.GetCurrentDirectory(), "OutputPDFs")}";
 
-        [Option('n', "file-naming", HelpText =
+        [Option('f', "file-naming", HelpText =
             "File Naming Covention to use, insert {0} to indicate where folder name should be inserted.\n Defaults to: \"{0} - NYLJ.pdf\"")]
 
         public string FileNamingConvention { get; set; } = "{0} - NYLJ.pdf";
