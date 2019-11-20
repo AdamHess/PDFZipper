@@ -1,5 +1,7 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Diagnostics;
+using System.Drawing;
 using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
@@ -22,9 +24,8 @@ namespace PdfZipper.Core
 
         static void Main(string[] args)
         {
-
-            
-            Parser.Default.ParseArguments<Options>(args)
+            var tmpArgs = new String[] {"-i", "D:\\2017", "-o", "D:\\pdfs10", "-q", "10", "-s", "-m", "20"};
+            Parser.Default.ParseArguments<Options>(tmpArgs)
                 .WithParsed<Options>(ops =>
                 {
                     Options = ops;
@@ -36,7 +37,7 @@ namespace PdfZipper.Core
 
         private static void Execute()
         {
-            var searchFolder = Options.InputFolder; //"C:\\Users\\adam.hess\\Desktop\\New York Law Journal";
+            var searchFolder = Options.InputFolder; 
             if (!Directory.Exists(searchFolder))
             {
                 Console.WriteLine($"Input Directory Does not exist. Exiting application. {Options.InputFolder}");
@@ -51,20 +52,43 @@ namespace PdfZipper.Core
                 return;
             }
             Directory.CreateDirectory(Options.OutputFolder);
+            if (Options.UseParallelism)
+            {
+                ProcessFoldersParallel(folders);
+            }
+            else
+            {
+                ProcessFolders(folders);
+            }
+        }
+
+
+        private static void ProcessFolders(List<string> folders)
+        {
 
             using var folderProgressBar = new ProgressBar(folders.Count, "Processing Folders", ConsoleColor.White);
             var currFolder = 0;
-            Parallel.ForEach(folders, new ParallelOptions
+            foreach (var folder in folders)
             {
-                MaxDegreeOfParallelism = 3,
+                folderProgressBar.Tick($"{folder} {++currFolder}/{folders.Count}");
+                ProcessFolder(folder, folderProgressBar);
 
-            },
-                f =>
-                {
-                    folderProgressBar.Tick($"{f} {++currFolder}/{folders.Count}");
-                    ProcessFolder(f, folderProgressBar);
-                });
+            }
+        }
 
+        private static void ProcessFoldersParallel(List<string> folders)
+        {
+            using var folderProgressBar = new ProgressBar(folders.Count, "Processing Folders", ConsoleColor.White);
+            var currFolder = 0;
+            var parallelOptions = new ParallelOptions
+            {
+                MaxDegreeOfParallelism = Environment.ProcessorCount,
+            };
+            Parallel.ForEach(folders, parallelOptions, folder =>
+            {
+                folderProgressBar.Tick($"{folder} {++currFolder}/{folders.Count}");
+                ProcessFolder(folder, folderProgressBar);
+            });
         }
 
         private static void ProcessFolder(string folder, ProgressBar parentProgressBar)
@@ -83,7 +107,7 @@ namespace PdfZipper.Core
                 Log.Info($"Skipping {folder}");
                 return;
             }
-            
+
             using var doc = new PdfDocument()
             {
                 Options =
@@ -103,7 +127,7 @@ namespace PdfZipper.Core
                 imageProgressBar.Tick($"Processing {imageFile} {++progressCount}/{imageFiles.Count}");
                 using var memStream = CompressImage(imgfactory, imageFile);
                 AddPageToPdf(memStream, doc);
-                
+
             }
 
             if (doc.PageCount <= 0) return;
@@ -127,13 +151,25 @@ namespace PdfZipper.Core
 
         private static Stream CompressImage(ImageFactory imgfactory, string imageFile)
         {
-            var memStream = new MemoryStream();
-            imgfactory.Load(imageFile)
-                .Quality(Options.Quality)
-                .Save(memStream);
+            MemoryStream memStream;
+            var quality = Options.Quality;
+            imgfactory.Load(imageFile);
+            do
+            {
+                memStream = new MemoryStream();
+                imgfactory
+                    .Quality(quality--)
+                    .Save(memStream);
+            } while (((memStream.Length > Options.MaxImageSize * 1024 ) && quality > 0)|| Options.MaxImageSize == 0);
+
+            if (quality == 0)
+            {
+                imgfactory
+                    .Quality(Options.Quality)
+                    .Save(memStream);
+            }
             return memStream;
         }
-
     }
 }
 

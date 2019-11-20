@@ -26,5 +26,17 @@ namespace PdfZipper
 
         [Option('s', "skip-existing", HelpText = "Skips folders that have PDFS already generated in output directory.")]
         public bool SkipExistingFolders { get; set; }
+
+        [Option('p', "parallel",  HelpText = "Executes application in parallel. Will default to the number of cores in system. ")]
+        public bool UseParallelism { get; set; }
+
+        [Option('m', "max-image-size", HelpText =
+            "Will progressively lower image quality on a per image basis until the image is below the specified size (in KB)")]
+        public uint MaxImageSize { get; set; } = 0;
+
+
+        [Option('r', "rescale",  HelpText = "Rescale the Image by multiplicative factor")]
+        public float Scale { get; set; } = 1;
+
     }
 }
