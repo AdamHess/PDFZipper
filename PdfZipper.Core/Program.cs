@@ -24,15 +24,12 @@ namespace PdfZipper.Core
 
         static void Main(string[] args)
         {
-            var tmpArgs = new String[] {"-i", "D:\\2017", "-o", "D:\\pdfs10", "-q", "10", "-s", "-m", "20"};
-            Parser.Default.ParseArguments<Options>(tmpArgs)
+            Parser.Default.ParseArguments<Options>(args)
                 .WithParsed<Options>(ops =>
                 {
                     Options = ops;
                     Execute();
                 });
-
-
         }
 
         private static void Execute()
@@ -52,13 +49,13 @@ namespace PdfZipper.Core
                 return;
             }
             Directory.CreateDirectory(Options.OutputFolder);
-            if (Options.UseParallelism)
+            if (Options.NoParallelism)
             {
-                ProcessFoldersParallel(folders);
+                ProcessFolders(folders);
             }
             else
             {
-                ProcessFolders(folders);
+                ProcessFoldersParallel(folders); 
             }
         }
 
@@ -154,13 +151,20 @@ namespace PdfZipper.Core
             MemoryStream memStream;
             var quality = Options.Quality;
             imgfactory.Load(imageFile);
+            if (Options.Scale != 1)
+            {
+                imgfactory.Constrain(new Size((int) (imgfactory.Image.Size.Height * Options.Scale),
+                    (int) (imgfactory.Image.Size.Width * Options.Scale)));
+            }
+
             do
             {
                 memStream = new MemoryStream();
+                
                 imgfactory
                     .Quality(quality--)
                     .Save(memStream);
-            } while (((memStream.Length > Options.MaxImageSize * 1024 ) && quality > 0)|| Options.MaxImageSize == 0);
+            } while (((memStream.Length > Options.MaxImageSize * 1024 ) && quality > 0) && Options.MaxImageSize != 0);
 
             if (quality == 0)
             {
