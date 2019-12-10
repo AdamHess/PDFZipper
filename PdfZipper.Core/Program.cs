@@ -84,8 +84,16 @@ namespace PdfZipper.Core
             };
             Parallel.ForEach(folders, parallelOptions, folder =>
             {
-                folderProgressBar.Tick($"{folder} {++currFolder}/{folders.Count}");
-                ProcessFolder(folder, folderProgressBar);
+                try
+                {
+                    folderProgressBar.Tick($"{folder} {++currFolder}/{folders.Count}");
+                    ProcessFolder(folder, folderProgressBar);
+                }
+                catch (Exception e)
+                {
+                    Log.Error(e);
+                    throw;
+                }
             });
         }
 
